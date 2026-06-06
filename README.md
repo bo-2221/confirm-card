@@ -13,21 +13,21 @@ A custom card for [Home Assistant](https://www.home-assistant.io/) that wraps an
 ### Popup – Dark & Light Theme
 
 <p align="center">
-  <img src="assets/popup-dark.png" alt="Dark Theme" width="320"/>
+  <img src="https://raw.githubusercontent.com/bo-2221/confirm-card/main/assets/popup-dark.png" alt="Dark Theme" width="320"/>
   &nbsp;&nbsp;&nbsp;
-  <img src="assets/popup-light.png" alt="Light Theme" width="320"/>
+  <img src="https://raw.githubusercontent.com/bo-2221/confirm-card/main/assets/popup-light.png" alt="Light Theme" width="320"/>
 </p>
 
 ### Visual Editor
 
 <p align="center">
-  <img src="assets/editor.png" alt="Visual Editor" width="700"/>
+  <img src="https://raw.githubusercontent.com/bo-2221/confirm-card/main/assets/editor.png" alt="Visual Editor" width="700"/>
 </p>
 
 ### Card on Dashboard (Pill Style)
 
 <p align="center">
-  <img src="assets/card-pill.png" alt="Pill Style Card" width="400"/>
+  <img src="https://raw.githubusercontent.com/bo-2221/confirm-card/main/assets/card-pill.png" alt="Pill Style Card" width="400"/>
 </p>
 
 ---
