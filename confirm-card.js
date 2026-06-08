@@ -403,18 +403,18 @@ class ConfirmCard extends HTMLElement {
 customElements.define('confirm-card', ConfirmCard);
 
 console.info(
-  '%c  CONFIRM CARD  %c\n%c  Bestätigungs-Popup für Home Assistant  %c\n%c  v1.0.0  %c',
-  ['background:#363638','color:#ECDFCC','font-size:16px','font-weight:700','letter-spacing:1px','padding:10px 87px 6px','border-radius:20px 20px 0 0'].join(';'),
+  '%c  CONFIRM-CARD  %c\n%c  Bestätigungs-Popup für Home Assistant  %c\n%c  v1.0.4  %c',
+  ['background:#363638','color:#ECDFCC','font-size:15px','font-weight:700','letter-spacing:1px','padding:10px 86px 6px','border-radius:20px 20px 0 0'].join(';'),
   '',
   ['background:#363638','color:#aaaaaa','font-size:11px','padding:4px 28px 8px'].join(';'),
   '',
-  ['background:#ECDFCC','color:#28282A','font-size:12px','font-weight:700','padding:6px 128px','border-radius:0 0 20px 20px','letter-spacing:0.5px'].join(';'),
+  ['background:#ECDFCC','color:#28282A','font-size:12px','font-weight:700','padding:6px 119px','border-radius:0 0 20px 20px','letter-spacing:0.5px'].join(';'),
   ''
 );
 window.customCards = window.customCards || [];
 window.customCards.push({
   type: 'confirm-card',
-  name: 'Confirm Card',
+  name: 'Confirm-Card',
   description: 'Zeigt ein Bestätigungs-Popup bevor eine Aktion ausgeführt wird. Mit visuelem Editor und anpassbarem Design.',
   preview: true,
 });
