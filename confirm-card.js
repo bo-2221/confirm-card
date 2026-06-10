@@ -320,7 +320,9 @@ class ConfirmCard extends HTMLElement {
 
     try {
       const helpers = await window.loadCardHelpers();
-      const card = helpers.createCardElement(this._config.card);
+      const _innerConf = this._config.card;
+      if (_innerConf?.type === 'light' && !_innerConf?.entity) return;
+      const card = helpers.createCardElement(_innerConf);
       const hass = this._hassQueue || this._hass;
       if (hass) card.hass = hass;
       this._hassQueue = null;
@@ -402,15 +404,11 @@ class ConfirmCard extends HTMLElement {
 
 customElements.define('confirm-card', ConfirmCard);
 
-console.info(
-  '%c  CONFIRM-CARD  %c\n%c  Bestätigungs-Popup für Home Assistant  %c\n%c  v1.0.4  %c',
-  ['background:#363638','color:#ECDFCC','font-size:15px','font-weight:700','letter-spacing:1px','padding:10px 86px 6px','border-radius:20px 20px 0 0'].join(';'),
-  '',
-  ['background:#363638','color:#aaaaaa','font-size:11px','padding:4px 28px 8px'].join(';'),
-  '',
-  ['background:#ECDFCC','color:#28282A','font-size:12px','font-weight:700','padding:6px 119px','border-radius:0 0 20px 20px','letter-spacing:0.5px'].join(';'),
-  ''
-);
+  console.info(
+    `%c CONFIRM-CARD %c v1.0.5 `,
+    'background:#ECDFCC;color:#28282A;font-weight:700;padding:8px 6px;border-radius:8px 0 0 8px',
+    'background:#363638;color:#ECDFCC;font-weight:500;padding:8px 6px;border-radius:0 8px 8px 0'
+  );
 window.customCards = window.customCards || [];
 window.customCards.push({
   type: 'confirm-card',
@@ -448,27 +446,129 @@ const SERVICE_MAP_ED = {
   button:'button.press', scene:'scene.turn_on', script:'script.turn_on',
 };
 // Pill-Style Template (Dyson Style)
-const PILL_TEMPLATE = (entity, name, icon) => ({
-  type: 'custom:button-card',
-  entity,
-  name: name || '',
-  icon: icon || 'mdi:power-plug',
-  tap_action: { action: 'none' },
-  extra_styles: ':host{--button-card-ripple-color:transparent!important;--ha-ripple-color:transparent!important;-webkit-tap-highlight-color:transparent!important;overflow:hidden}',
-  state: [
-    { value: 'off', icon: icon ? icon + '-off' : 'mdi:power-plug-off', styles: { icon: [{'color':'#ECDFCC'},{'opacity':'0.6'}], img_cell: [{'background':'#3a3b3d'}] } },
-    { value: 'unavailable', icon: icon ? icon + '-off' : 'mdi:power-plug-off', styles: { card: [{'background':'#C62828'},{'pointer-events':'none'}], icon: [{'color':'#ECDFCC'},{'opacity':'0.6'}], img_cell: [{'background':'#3a3b3d'}], name: [{'color':'#ECDFCC'}] } },
-  ],
-  styles: {
-    card: [{'height':'56px'},{'border-radius':'75px'},{'padding':'4px 20px 4px 4px'},{'background':'#28282A'}],
-    grid: [{'grid-template-columns':'57px 1fr'},{'grid-template-areas':'"i n" "i state"'}],
-    icon: [{'width':'24px'},{'color':'#28282A'}],
-    img_cell: [{'justify-self':'start'},{'width':'48px'},{'height':'48px'},{'border-radius':'50%'},{'background':'#ECDFCC'}],
-    name: [{'justify-self':'start'},{'font-size':'14px'},{'color':'#ECDFCC'},{'padding-top':'8px'},{'font-weight':'500'}],
-    custom_fields: { state: [{'justify-self':'start'},{'font-size':'13px'},{'padding-bottom':'6px'},{'color':'#ECDFCC'},{'opacity':'0.7'}] },
-  },
-  custom_fields: { state: '[[[if(entity.state==="on")return`<span>Ein</span>`;if(entity.state==="unavailable")return`<span>Nicht verfügbar</span>`;return`<span>Aus</span>`;]]]' },
-});
+const DEFAULT_ICONS = {
+  button: { on: 'mdi:power-plug',    off: 'mdi:power-plug-off',    unavail: 'mdi:power-plug-off'    },
+  light:  { on: 'mdi:lightbulb-on',  off: 'mdi:lightbulb',         unavail: 'mdi:lightbulb-off'     },
+  tile:   { on: 'mdi:toggle-switch', off: 'mdi:toggle-switch-off',  unavail: 'mdi:toggle-switch-off' },
+};
+
+const PILL_D={
+  on: {card_bg:'#28282A',icon_bg:'#ECDFCC',icon_color:'#28282A',name_color:'#ECDFCC'},
+  off:{card_bg:'#28282A',icon_bg:'#3a3b3d',icon_color:'#ECDFCC',name_color:'#ECDFCC'},
+  unavail_color:'#C62828',
+};
+const _mCC=(def,cust)=>{const r={...def};if(cust)Object.entries(cust).forEach(([k,v])=>{if(v)r[k]=v;});return r;};
+const PILL_TEMPLATE=(entity,name,iconOn,iconOff,iconUnavail,cc)=>{
+  const on=_mCC(PILL_D.on,cc?.on),off=_mCC(PILL_D.off,cc?.off);
+  const uCol=(cc?.unavail_color)||PILL_D.unavail_color;
+  const iOn=iconOn||'mdi:power-plug',iOff=iconOff||'mdi:power-plug-off',iU=iconUnavail||iOff;
+  return{
+    type:'custom:button-card',entity,name:name||'',icon:iOn,tap_action:{action:'none'},
+    extra_styles: ':host {\n  --button-card-ripple-color: transparent !important;\n  --button-card-ripple-press-opacity: 0 !important;\n  --ha-ripple-color: transparent !important;\n  -webkit-tap-highlight-color: transparent !important;\n  overflow: hidden;\n}\n',
+    state:[
+      {value:'off',icon:iOff,styles:{card:[{'background':off.card_bg}],icon:[{'color':off.icon_color},{'opacity':'0.6'}],img_cell:[{'background':off.icon_bg}],name:[{'color':off.name_color}]}},
+      {value:'unavailable',icon:iU,styles:{card:[{'background':uCol},{'pointer-events':'none'}],icon:[{'color':off.icon_color},{'opacity':'0.6'}],img_cell:[{'background':off.icon_bg}],name:[{'color':on.name_color}]}},
+    ],
+    styles:{
+      card:[{'height':'56px'},{'border-radius':'75px'},{'padding':'4px 20px 4px 4px'},{'background':on.card_bg}],
+      grid:[{'grid-template-columns':'57px 1fr'},{'grid-template-areas':'"i n" "i state"'}],
+      icon:[{'width':'24px'},{'color':on.icon_color}],
+      img_cell:[{'justify-self':'start'},{'width':'48px'},{'height':'48px'},{'border-radius':'50%'},{'background':on.icon_bg}],
+      name:[{'justify-self':'start'},{'font-size':'14px'},{'color':on.name_color},{'padding-top':'8px'},{'font-weight':'500'}],
+      custom_fields:{state:[{'justify-self':'start'},{'font-size':'13px'},{'padding-bottom':'6px'},{'color':on.name_color},{'opacity':'0.7'}]},
+    },
+    custom_fields: { state: '[[[\n  if (entity.state === "on") {\n    return `<span>Ein</span>`;\n  } else if (entity.state === "unavailable") {\n    return `<span>Nicht verfügbar</span>`;\n  } else {\n    return `<span>Aus</span>`;\n  }\n]]]\n' },
+  };
+};
+
+
+// PILL_YAML: formatierter YAML-String für die Textarea
+const PILL_YAML = (entity, name, iconOn, iconOff, iconUnavail, cc) => {
+  const on   = _mCC(PILL_D.on,  cc?.on);
+  const off  = _mCC(PILL_D.off, cc?.off);
+  const uCol = cc?.unavail_color || PILL_D.unavail_color;
+  const iOn  = iconOn      || 'mdi:power-plug';
+  const iOff = iconOff     || 'mdi:power-plug-off';
+  const iU   = iconUnavail || iOff;
+  const offCard = cc?.off?.card_bg    ? `\n      card:\n        - background: "${off.card_bg}"` : '';
+  const offName = cc?.off?.name_color ? `\n      name:\n        - color: "${off.name_color}"` : '';
+  return (`type: custom:button-card
+entity: ${entity}
+name: ${name || ''}
+icon: ${iOn}
+extra_styles: |
+  :host {
+    --button-card-ripple-color: transparent !important;
+    --button-card-ripple-press-opacity: 0 !important;
+    --ha-ripple-color: transparent !important;
+    -webkit-tap-highlight-color: transparent !important;
+    overflow: hidden;
+  }
+state:
+  - value: "off"
+    icon: ${iOff}
+    styles:${offCard}
+      icon:
+        - color: "${off.icon_color}"
+        - opacity: "0.6"
+      img_cell:
+        - background: "${off.icon_bg}"${offName}
+  - value: unavailable
+    icon: ${iU}
+    styles:
+      card:
+        - background: "${uCol}"
+        - pointer-events: none
+      icon:
+        - color: "${off.icon_color}"
+        - opacity: "0.6"
+      img_cell:
+        - background: "${off.icon_bg}"
+      name:
+        - color: "${on.name_color}"
+styles:
+  card:
+    - height: 56px
+    - border-radius: 75px
+    - padding: 4px 20px 4px 4px
+    - background: "${on.card_bg}"
+  grid:
+    - grid-template-columns: 57px 1fr
+    - grid-template-areas: "\\"i n\\" \\"i state\\""
+  icon:
+    - width: 24px
+    - color: "${on.icon_color}"
+  img_cell:
+    - justify-self: start
+    - width: 48px
+    - height: 48px
+    - border-radius: 50%
+    - background: "${on.icon_bg}"
+  name:
+    - justify-self: start
+    - font-size: 14px
+    - color: "${on.name_color}"
+    - padding-top: 8px
+    - font-weight: "500"
+  custom_fields:
+    state:
+      - justify-self: start
+      - font-size: 13px
+      - padding-bottom: 6px
+      - color: "${on.name_color}"
+      - opacity: "0.7"
+custom_fields:
+  state: |
+    [[[
+      if (entity.state === "on") {
+        return \`<span>Ein</span>\`;
+      } else if (entity.state === "unavailable") {
+        return \`<span>Nicht verfügbar</span>\`;
+      } else {
+        return \`<span>Aus</span>\`;
+      }
+    ]]]`);
+};
 
 const getAutoSvc = id => { if(!id) return ''; const d=id.split('.')[0]; return SERVICE_MAP_ED[d]||`${d}.toggle`; };
 
@@ -530,11 +630,14 @@ class ConfirmCardEditor extends HTMLElement {
     this._cardStyle = 'standard'; // 'standard' | 'pill'
     this._expectedEntity = undefined; // Erzwingt was der Picker zeigen soll
     this._customStates = ['unavailable','unknown'];
+    this._colorTab = 'off';
+    this._cc = {};
   }
 
   set hass(hass) {
     this._hass = hass;
     this.shadowRoot.querySelectorAll('ha-entity-picker').forEach(el => el.hass = hass);
+    this.shadowRoot.querySelectorAll('ha-icon-picker').forEach(el => el.hass = hass);
   }
 
   setConfig(config) {
@@ -543,6 +646,12 @@ class ConfirmCardEditor extends HTMLElement {
       this._ignoreNextSetConfig = false;
       this._config = JSON.parse(JSON.stringify(config));
       if (this._config.card) this._config.card.tap_action = { action: 'none' };
+      if (config._editorMode&&['button','light','tile'].includes(config._editorMode)) this._mode=config._editorMode;
+      else{const _ei=config.card?.entity||'';const _di=_ei?_ei.split('.')[0]:null;
+        if(_di==='light')this._mode='light';
+        else if(_di&&['switch','input_boolean'].includes(_di))this._mode='button';
+        else if(config.card?.type==='light')this._mode='light';
+        else if(config.card?.type==='tile')this._mode='tile';}
       return;
     }
 
@@ -559,16 +668,26 @@ class ConfirmCardEditor extends HTMLElement {
 
     // Name und Icon immer beim ersten Render laden
     if (isFirstRender) {
-      this._editorName = config.card?.name || '';
-      this._editorIcon = config.card?.icon || '';
+      this._editorName=config.card?.name||''; this._editorIcon=config.card?.icon||'';
+      this._editorIconOn=config.card?.icon_on||''; this._editorIconOff=config.card?.icon_off||'';
+      this._editorIconUnavail=config.card?.icon_unavail||'';
+      this._cc=config._cc||{};
       this._cardStyle = config.card?.type === 'custom:button-card' ? 'pill' : 'standard';
     }
 
-    if (isSimple) {
-      this._mode = t;
+    if(config._editorMode&&['button','light','tile'].includes(config._editorMode)){
+      this._mode=config._editorMode;
+    }else{
+      const _eid2=config.card?.entity||'';const _d2=_eid2?_eid2.split('.')[0]:null;
+      if(_d2==='light')this._mode='light';
+      else if(_d2&&['switch','input_boolean'].includes(_d2))this._mode='button';
+      else if(t==='light')this._mode='light';
+      else if(t==='tile')this._mode='tile';
+      else if(['button','light','tile'].includes(t))this._mode=t;
+    }
+    if (isSimple || this._cardStyle === 'standard') {
       this._useCustomYaml = false;
     } else {
-      this._mode = ['button','light','tile'].includes(t) ? t : 'button';
       this._useCustomYaml = true;
       // Beim ersten Laden oder bei externen Änderungen (YAML-Editor): neu laden
       if (!this._customYaml || isFirstRender) {
@@ -650,7 +769,9 @@ class ConfirmCardEditor extends HTMLElement {
       .toggle-track::after{content:'';position:absolute;width:16px;height:16px;border-radius:50%;background:white;top:3px;left:3px;transition:transform 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.3)}
       .toggle-sw input:checked + .toggle-track::after{transform:translateX(16px)}
       #ep-wrap ha-entity-picker{display:block;width:100%}
-    </style>
+          #f-name:hover{background:var(--ha-color-form-background-hover,rgba(0,0,0,0.08)) !important}
+          #f-name:focus{border-bottom:2px solid var(--ha-color-primary,var(--primary-color,#03a9f4)) !important}
+        </style>
 
     <div class="sec">
       <div class="lbl">Karten-Typ</div>
@@ -676,10 +797,10 @@ class ConfirmCardEditor extends HTMLElement {
           <!-- Mini Vorschau Pill -->
           <div style="background:#28282A;border-radius:28px;padding:4px 10px 4px 4px;display:flex;align-items:center;gap:6px;pointer-events:none">
             <div style="width:24px;height:24px;border-radius:50%;background:#ECDFCC;display:flex;align-items:center;justify-content:center;flex-shrink:0">
-              <ha-icon icon="mdi:power-plug" style="--mdc-icon-size:14px;color:#28282A"></ha-icon>
+              <ha-icon icon="${this._mode==='light'?'mdi:lightbulb-on':this._mode==='tile'?'mdi:toggle-switch':'mdi:power-plug'}" style="--mdc-icon-size:14px;color:#28282A"></ha-icon>
             </div>
             <div>
-              <div style="font-size:9px;color:#ECDFCC;font-weight:500;line-height:1.2">${this._editorName||'Gerät'}</div>
+              <div style="font-size:9px;color:#ECDFCC;font-weight:500;line-height:1.2">${this._mode==='light'?'Licht':this._mode==='tile'?'Tile':'Schalter'}</div>
               <div style="font-size:8px;color:#ECDFCC;opacity:0.7">Aus</div>
             </div>
           </div>
@@ -688,8 +809,9 @@ class ConfirmCardEditor extends HTMLElement {
       </div>
     </div>
 
+    <div id="native-editor-wrap"></div>
     ${this._mode!=='custom' ? `
-      <div class="sec">
+      <div class="sec" style="${this._cardStyle==='standard'?'display:none':''}">
         <div class="lbl">Entität</div>
         <div class="field" id="ep-wrap"></div>
         <div id="entity-hint" class="hint" style="margin-top:-4px;display:block">
@@ -702,14 +824,12 @@ class ConfirmCardEditor extends HTMLElement {
           })()}
         </div>
         <div class="row">
-          <div class="field">
-            <label>Name</label>
-            <input id="f-name" type="text" value="${this._editorName}" placeholder="Optional" />
-          </div>
-          <div class="field">
-            <label>Icon</label>
-            <input id="f-icon" type="text" value="${this._editorIcon}" placeholder="mdi:home" />
-          </div>
+          <div class="field"><label>Name</label><input id="f-name" type="text" value="${this._editorName}" placeholder="Optional" style="height:56px;padding:8px 12px;background:var(--ha-color-form-background);color:var(--primary-text-color);border-bottom:1px solid var(--ha-color-border-neutral-loud);border-left:none;border-right:none;border-top:none;border-radius:var(--ha-border-radius-sm);font-size:var(--ha-font-size-m);border-end-end-radius:0px;border-end-start-radius:0px;box-sizing:border-box;font-family:inherit;outline:none;transition:background .15s,border-color .15s" /></div>
+          <div class="field"><label>Icon AN</label><div id="ip-on-wrap"></div></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>Icon AUS</label><div id="ip-off-wrap"></div></div>
+          <div class="field"><label>Icon Unavailable</label><div id="ip-unavail-wrap"></div></div>
         </div>
       </div>
     ` : ''}
@@ -754,14 +874,49 @@ class ConfirmCardEditor extends HTMLElement {
         ].map(([key,label]) => {
           const c = this._config.popup?.colors || THEMES.dark;
           const val = c[key] || THEMES.dark[key];
-          return '<div style="display:flex;align-items:center;gap:8px">'
-            + '<input type="color" data-color="' + key + '" value="' + val + '" style="width:36px;height:32px;border:none;border-radius:6px;cursor:pointer;padding:2px;flex-shrink:0">'
-            + '<label style="font-size:12px;color:var(--secondary-text-color)">' + label + '</label>'
-            + '</div>';
+          const def=THEMES.dark[key]||'',isCust=val!==def;
+          return '<div style="display:flex;align-items:center;gap:6px">'
+            +'<input type="color" data-color="'+key+'" value="'+val+'" data-def="'+def+'" style="width:34px;height:30px;border:none;border-radius:6px;cursor:pointer;padding:2px;flex-shrink:0">'
+            +'<label style="font-size:11px;color:var(--secondary-text-color);flex:1">'+label+'</label>'
+            +'<button data-popup-reset="'+key+'" style="background:none;border:none;cursor:pointer;font-size:15px;color:var(--primary-color,#ECDFCC);opacity:'+(isCust?'0.9':'0.5')+';padding:2px 4px" title="Zurücksetzen">&#8635;</button>'
+            +'</div>';
         }).join('')}
       </div>
     </div>
 
+    <div class="sec" style="${this._cardStyle==='standard'?'display:none':''}"><div class="lbl">Karten-Farben</div>
+      <div style="font-size:11px;color:var(--secondary-text-color);margin-bottom:8px;opacity:0.7">Wirksam nur im Pill Style</div>
+      <div style="display:flex;gap:6px;margin-bottom:10px">
+        <button class="tb ${this._colorTab==='off'?'on':''}" data-ctab="off" style="flex:1;padding:6px 4px;font-size:12px">AUS</button>
+        <button class="tb ${this._colorTab==='on'?'on':''}" data-ctab="on" style="flex:1;padding:6px 4px;font-size:12px">AN</button>
+        <button class="tb ${this._colorTab==='unavail'?'on':''}" data-ctab="unavail" style="flex:1;padding:6px 4px;font-size:12px">Unavailable</button>
+      </div>
+      ${(()=>{
+        const _t=this._colorTab||'on';
+        const _r=_t==='on'?[
+          ['on.card_bg',   'Karte Hintergrund', PILL_D.on.card_bg,    this._cc?.on?.card_bg   ||''],
+          ['on.icon_bg',   'Icon Hintergrund',  PILL_D.on.icon_bg,    this._cc?.on?.icon_bg   ||''],
+          ['on.icon_color','Icon Farbe',        PILL_D.on.icon_color, this._cc?.on?.icon_color||''],
+          ['on.name_color','Name Farbe',        PILL_D.on.name_color, this._cc?.on?.name_color||''],
+        ]:_t==='off'?[
+          ['off.card_bg',   'Karte Hintergrund', PILL_D.off.card_bg,    this._cc?.off?.card_bg   ||''],
+          ['off.icon_bg',   'Icon Hintergrund',  PILL_D.off.icon_bg,    this._cc?.off?.icon_bg   ||''],
+          ['off.icon_color','Icon Farbe',        PILL_D.off.icon_color, this._cc?.off?.icon_color||''],
+          ['off.name_color','Name Farbe',        PILL_D.off.name_color, this._cc?.off?.name_color||''],
+        ]:[
+          ['unavail_color','Hintergrund','#C62828',this._cc?.unavail_color||''],
+        ];
+        return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
+          +_r.map(([k,l,def,cur])=>{
+            const v=cur||def,isCust=!!(cur&&cur!==def);
+            return '<div style="display:flex;align-items:center;gap:6px">'
+              +'<input type="color" data-cc="'+k+'" value="'+v+'" data-def="'+def+'" style="width:34px;height:30px;border:none;border-radius:6px;cursor:pointer;padding:2px;flex-shrink:0">'
+              +'<label style="font-size:11px;color:var(--secondary-text-color);flex:1">'+l+'</label>'
+              +'<button data-cc-reset="'+k+'" style="background:none;border:none;cursor:pointer;font-size:15px;color:var(--primary-color,#ECDFCC);opacity:'+(isCust?'0.9':'0.5')+';padding:2px 4px" title="Zurücksetzen">&#8635;</button>'
+              +'</div>';
+          }).join('')+'</div>';
+      })()}
+    </div>
 
     <div class="sec">
       <div class="lbl">Aktion</div>
@@ -781,7 +936,7 @@ class ConfirmCardEditor extends HTMLElement {
       <button class="add" id="add-state"><ha-icon icon="mdi:plus" style="--mdc-icon-size:16px"></ha-icon> State hinzufügen</button>
     </div>
 
-    <div class="sec">
+    <div class="sec" style="${this._cardStyle==='standard'?'display:none':''}">
       <div class="lbl">Eigener Code (optional)</div>
       <div class="toggle-wrap">
         <span class="toggle-label">Eigene Karte verwenden</span>
@@ -807,23 +962,63 @@ class ConfirmCardEditor extends HTMLElement {
       ep.hass  = this._hass;
       ep.label = 'Entität';
       ep.style.width = '100%';
-      ep.addEventListener('value-changed', e => {
-        this._entityChanged(e.detail.value);
-        const hint = this.shadowRoot.querySelector('#entity-hint');
-        if (hint) {
-          const v = e.detail.value || '';
-          const d = v.split('.')[0];
-          const valid = DOMAIN_FILTER[this._mode] || [];
-          if (!v) hint.innerHTML = '<span style="color:var(--warning-color,#FF9800)">⚠ Bitte ' + (this._mode==='light'?'eine Lampe':'einen Schalter') + ' auswählen</span>';
-          else if (valid.length > 0 && !valid.includes(d)) hint.innerHTML = '<span style="color:var(--error-color,#e53935)">⚠ <b>' + v + '</b> ist ' + (this._mode==='light'?'keine Lampe':'kein Schalter') + ' – bitte passende Entität wählen</span>';
-          else hint.innerHTML = '';
-        }
-      });
-      // Properties VOR appendChild setzen → Picker rendert sofort korrekt, kein Jump
       const domains = DOMAIN_FILTER[this._mode] || [];
       if (domains.length > 0) ep.includeDomains = domains;
       if (eid) ep.value = eid;
       epWrap.appendChild(ep);
+      requestAnimationFrame(() => {
+        ep.addEventListener('value-changed', e => {
+          if (!e.detail.value) return;
+          this._entityChanged(e.detail.value);
+          const hint = this.shadowRoot.querySelector('#entity-hint');
+          if (hint) {
+            const v = e.detail.value || '';
+            const d = v.split('.')[0];
+            const valid = DOMAIN_FILTER[this._mode] || [];
+            if (!v) hint.innerHTML = '<span style="color:var(--warning-color,#FF9800)">⚠ Bitte ' + (this._mode==='light'?'eine Lampe':'einen Schalter') + ' auswählen</span>';
+            else if (valid.length > 0 && !valid.includes(d)) hint.innerHTML = '<span style="color:var(--error-color,#e53935)">⚠ <b>' + v + '</b> ist ' + (this._mode==='light'?'keine Lampe':'kein Schalter') + ' – bitte passende Entität wählen</span>';
+            else hint.innerHTML = '';
+          }
+        });
+      });
+    }
+
+    // Nativen HA-Editor
+    if (this._cardStyle === 'standard') {
+      const nWrap = sr.querySelector('#native-editor-wrap');
+      if (nWrap && this._hass) {
+        const _hass = this._hass;
+        const _conf = JSON.parse(JSON.stringify(this._config.card || {}));
+        delete _conf.tap_action;
+        const cardType = this._mode==='light' ? 'light' : this._mode==='tile' ? 'tile' : 'button';
+        const cardElName = `hui-${cardType}-card`;
+        const attachEditor = (editor) => {
+          editor.hass = _hass;
+          try { editor.setConfig(_conf); } catch(e) {}
+          // stopPropagation verhindert dass HA den Event abfängt und confirm-card config überschreibt
+          editor.addEventListener('config-changed', ev => {
+            ev.stopPropagation();
+            this._config.card = { ...ev.detail.config, tap_action: { action:'none' } };
+            this._fireChanged();
+          });
+          nWrap.innerHTML = '';
+          nWrap.appendChild(editor);
+        };
+        (async () => {
+          try {
+            await window.loadCardHelpers();
+            await customElements.whenDefined(cardElName);
+            const CardClass = customElements.get(cardElName);
+            if (CardClass?.getConfigElement) {
+              const ed = await Promise.resolve(CardClass.getConfigElement());
+              if (ed instanceof Element) { attachEditor(ed); return; }
+            }
+            const edTag = `${cardElName}-editor`;
+            await Promise.race([customElements.whenDefined(edTag), new Promise(r => setTimeout(r, 3000))]);
+            if (customElements.get(edTag)) { attachEditor(document.createElement(edTag)); }
+          } catch(e) { console.warn('Native editor:', cardType, e); }
+        })();
+      }
     }
 
     this._listen();
@@ -876,9 +1071,33 @@ class ConfirmCardEditor extends HTMLElement {
     }));
 
     // Individuelle Farbwähler
-    sr.querySelectorAll('[data-color]').forEach(inp => inp.addEventListener('input', () => {
-      const colors = { ...(this._config.popup?.colors || THEMES.dark), [inp.dataset.color]: inp.value };
-      this._updatePopup({ colors });
+    sr.querySelectorAll('[data-color]').forEach(inp=>inp.addEventListener('input',()=>{
+      const colors={...(this._config.popup?.colors||THEMES.dark),[inp.dataset.color]:inp.value};
+      this._updatePopup({colors});
+      const rb=inp.closest('div')?.querySelector('[data-popup-reset]');if(rb)rb.style.opacity=inp.value===inp.dataset.def?'0.5':'0.9';
+    }));
+    sr.querySelectorAll('[data-popup-reset]').forEach(btn=>btn.addEventListener('click',()=>{
+      const inp=btn.closest('div')?.querySelector('[data-color]');
+      if(inp){inp.value=inp.dataset.def;btn.style.opacity='0.5';
+        this._updatePopup({colors:{...(this._config.popup?.colors||THEMES.dark),[inp.dataset.color]:inp.dataset.def}});}
+    }));
+    const _sCC=(k,v)=>{
+      if(k.includes('.')){const[g,p]=k.split('.');const grp={...(this._cc?.[g]||{})};if(v)grp[p]=v;else delete grp[p];this._cc={...this._cc,[g]:grp};}
+      else{const cc={...this._cc};if(v)cc[k]=v;else delete cc[k];this._cc=cc;}
+    };
+    sr.querySelectorAll('[data-cc]').forEach(inp=>inp.addEventListener('input',()=>{
+      _sCC(inp.dataset.cc,inp.value);
+      const rb=inp.closest('div')?.querySelector('[data-cc-reset]');if(rb)rb.style.opacity=inp.value===inp.dataset.def?'0.5':'0.9';
+      if(this._cardStyle==='pill')this._refreshPillYaml();else this._fireChanged();
+    }));
+    sr.querySelectorAll('[data-cc-reset]').forEach(btn=>btn.addEventListener('click',()=>{
+      const inp=btn.closest('div')?.querySelector('[data-cc]');
+      if(inp){inp.value=inp.dataset.def;btn.style.opacity='0.5';
+        _sCC(inp.dataset.cc,'');
+        if(this._cardStyle==='pill')this._refreshPillYaml();else this._fireChanged();}
+    }));
+    sr.querySelectorAll('[data-ctab]').forEach(btn=>btn.addEventListener('click',()=>{
+      this._colorTab=btn.dataset.ctab;this._render();
     }));
 
     // Eigener Code Toggle
@@ -1018,8 +1237,24 @@ class ConfirmCardEditor extends HTMLElement {
     });
 
     // Felder
-    on('#f-name',  v => this._updateCard({ name: v }));
-    on('#f-icon',  v => this._updateCard({ icon: v }));
+    on('#f-name',        v=>this._updateCard({name:v}));
+    const _mkIconPicker = (wrapperId, value, placeholder, onChange) => {
+      const wrap = sr.querySelector(wrapperId);
+      if (!wrap) return;
+      const ip = document.createElement('ha-icon-picker');
+      ip.hass = this._hass;
+      ip.value = value || '';
+      ip.placeholder = placeholder;
+      ip.style.width = '100%';
+      ip.addEventListener('value-changed', e => onChange(e.detail.value || ''));
+      wrap.appendChild(ip);
+    };
+    const _iOn  = this._editorIconOn      || this._config.card?.icon                  || '';
+    const _iOff = this._editorIconOff     || this._config.card?.state?.[0]?.icon      || '';
+    const _iU   = this._editorIconUnavail || this._config.card?.state?.[1]?.icon      || '';
+    _mkIconPicker('#ip-on-wrap',     _iOn,  DEFAULT_ICONS[this._mode]?.on      || 'mdi:power-plug',     v=>{this._editorIconOn=v;      if(this._cardStyle==='pill')this._refreshPillYaml();else this._updateCard({icon_on:     v||undefined});});
+    _mkIconPicker('#ip-off-wrap',    _iOff, DEFAULT_ICONS[this._mode]?.off     || 'mdi:power-plug-off', v=>{this._editorIconOff=v;     if(this._cardStyle==='pill')this._refreshPillYaml();else this._updateCard({icon_off:    v||undefined});});
+    _mkIconPicker('#ip-unavail-wrap',_iU,   DEFAULT_ICONS[this._mode]?.unavail || 'mdi:power-plug-off', v=>{this._editorIconUnavail=v; if(this._cardStyle==='pill')this._refreshPillYaml();else this._updateCard({icon_unavail:v||undefined});});
     on('#f-msg',   v => this._updatePopup({ message: v }));
     on('#f-ok',    v => this._updatePopup({ confirm_text: v }));
     on('#f-no',    v => this._updatePopup({ cancel_text: v }));
@@ -1053,17 +1288,32 @@ class ConfirmCardEditor extends HTMLElement {
     });
   }
 
-  _applyCardStyle() {
+  _refreshPillYaml() {
     const eid  = this._config.entity || this._config.card?.entity || '';
-    const name = this._editorName || '';
-    const icon = this._editorIcon || '';
+    const cc   = this._cc || {};
+    this._config.card = { ...PILL_TEMPLATE(eid, this._editorName||'', this._editorIconOn||this._editorIcon, this._editorIconOff, this._editorIconUnavail, cc), tap_action: { action: 'none' } };
+    const yaml = PILL_YAML(eid, this._editorName||'', this._editorIconOn||this._editorIcon, this._editorIconOff, this._editorIconUnavail, cc);
+    this._customYaml = yaml;
+    this._savedCustomYaml = yaml;
+    const ta = this.shadowRoot.querySelector('#f-yaml');
+    if (ta) ta.value = yaml;
+    this._fireChanged();
+  }
+
+  _applyCardStyle() {
+    const eid        = this._config.entity || this._config.card?.entity || '';
+    const name       = this._editorName         || '';
+    const icon       = this._editorIcon         || '';
+    const iconOn     = this._editorIconOn        || '';
+    const iconOff    = this._editorIconOff       || '';
+    const iconUnavail= this._editorIconUnavail   || '';
     if (this._cardStyle === 'pill') {
-      this._config.card = { ...PILL_TEMPLATE(eid, name, icon), tap_action: { action: 'none' } };
-      this._useCustomYaml = true;
-      loadJsYaml().then(yaml => {
-        this._customYaml = yaml.dump(this._config.card, { indent:2, lineWidth:-1, noRefs:true, flowLevel:-1 });
-        this._savedCustomYaml = this._customYaml;
-      });
+      const _cc=this._cc||{};
+      this._config.card={...PILL_TEMPLATE(eid,name,iconOn||icon,iconOff,iconUnavail,_cc),tap_action:{action:'none'}};
+      this._useCustomYaml=true;
+      const _yaml=PILL_YAML(eid,name,iconOn||icon,iconOff,iconUnavail,_cc);
+      this._customYaml=_yaml;
+      this._savedCustomYaml=_yaml;
     } else {
       this._useCustomYaml = false;
       this._config.card = { type: this._mode, entity: eid, tap_action: { action: 'none' },
@@ -1094,7 +1344,11 @@ class ConfirmCardEditor extends HTMLElement {
     const name = this._editorName || '';
     const icon = this._editorIcon || '';
     if (this._cardStyle === 'pill') {
-      this._config.card = { ...PILL_TEMPLATE(restoredEid, name, icon), tap_action: { action: 'none' } };
+      const _cc2=this._cc||{};
+      this._config.card={...PILL_TEMPLATE(restoredEid,name,this._editorIconOn||icon,this._editorIconOff,this._editorIconUnavail,_cc2),tap_action:{action:'none'}};
+      const _y2=PILL_YAML(restoredEid,name,this._editorIconOn||icon,this._editorIconOff,this._editorIconUnavail,_cc2);
+      this._customYaml=_y2;
+      this._savedCustomYaml=_y2;
     } else {
       this._config.card = { type: mode, entity: restoredEid, tap_action: { action: 'none' },
         ...(name ? { name } : {}), ...(icon ? { icon } : {}) };
@@ -1105,10 +1359,18 @@ class ConfirmCardEditor extends HTMLElement {
 
   _entityChanged(eid) {
     this._config.popup = { ...this._config.popup };
+    if (!eid && (this._config.card?.entity||this._config.entity||'')) return;
     if (this._useCustomYaml) {
-      this._syncToCustomYaml('entity', eid);
-    } else {
       this._config.card = { ...this._config.card, entity: eid };
+      if (eid) this._syncToCustomYaml('entity', eid);
+    } else {
+      if (eid) {
+        const _d=eid.split('.')[0];
+        const newMode=_d==='light'?'light':['switch','input_boolean'].includes(_d)?'button':this._mode;
+        this._mode=newMode;
+        this._config.card={...this._config.card,entity:eid,type:newMode};
+        // Mode aus Entity-Domain ableiten UND card.type synchron halten
+      } else { this._config.card={...this._config.card,entity:eid}; }
     }
     this._fireChanged();
   }
@@ -1119,19 +1381,31 @@ class ConfirmCardEditor extends HTMLElement {
     const lines = this._customYaml.split('\n');
     // Top-Level Key finden (kein führendes Leerzeichen)
     const idx = lines.findIndex(l => l.startsWith(key + ':') || l.startsWith(key + ' :'));
-    if (idx < 0) return;
+    if (idx < 0) {
+      const typeIdx=lines.findIndex(l=>l.startsWith('type:'));
+      lines.splice(typeIdx>=0?typeIdx+1:0,0,`${key}: ${value}`);
+    } else {
     // Anführungszeichen vom alten Wert übernehmen falls vorhanden
     const oldLine = lines[idx];
     const hasQuotes = oldLine.includes('"') || oldLine.includes("'");
-    lines[idx] = hasQuotes ? `${key}: "${value}"` : `${key}: ${value}`;
+      lines[idx] = hasQuotes ? `${key}: "${value}"` : `${key}: ${value}`;
+    }
     this._customYaml = lines.join('\n');
     const ta = this.shadowRoot.querySelector('#f-yaml');
     if (ta) ta.value = this._customYaml;
   }
 
   _updateCard(p) {
-    if ('name' in p) this._editorName = p.name;
-    if ('icon' in p) this._editorIcon = p.icon;
+    if('name'in p)this._editorName=p.name||'';
+    if('icon'in p)this._editorIcon=p.icon||'';
+    if('icon_on'in p)this._editorIconOn=p.icon_on||'';
+    if('icon_off'in p)this._editorIconOff=p.icon_off||'';
+    if('icon_unavail'in p)this._editorIconUnavail=p.icon_unavail||'';
+    if('card_bg'in p)this._editorCardBg=p.card_bg||'';
+    if('icon_bg'in p)this._editorIconBg=p.icon_bg||'';
+    if('icon_color'in p)this._editorIconColor=p.icon_color||'';
+    if('name_color'in p)this._editorNameColor=p.name_color||'';
+    if('unavail_color'in p)this._editorUnavailColor=p.unavail_color||'';
     this._config.card = { ...this._config.card, ...p };
     if (this._useCustomYaml) {
       for (const [key, value] of Object.entries(p)) {
@@ -1147,6 +1421,8 @@ class ConfirmCardEditor extends HTMLElement {
     const out = JSON.parse(JSON.stringify(this._config));
     if (out.card?.tap_action?.action === 'none') delete out.card.tap_action;
     if (out.popup?.on_confirm) delete out.popup.on_confirm;
+    out._editorMode=this._mode;
+    if(Object.keys(this._cc||{}).length)out._cc=this._cc;
     this.dispatchEvent(new CustomEvent('config-changed', {
       detail:{ config: out },
       bubbles:true, composed:true,
