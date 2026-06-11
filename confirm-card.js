@@ -767,7 +767,7 @@ class ConfirmCardEditor extends HTMLElement {
       .state-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
       .state-row input{flex:1;padding:7px 10px;border:1px solid var(--divider-color,#e0e0e0);border-radius:6px;font-size:13px;background:var(--input-fill-color,#f5f5f5);color:var(--primary-text-color)}
       .rm{padding:4px 8px;border:none;background:none;cursor:pointer;color:var(--error-color,#e53935);font-size:16px}
-      .add{font-size:13px;color:var(--primary-color,#5b3de8);background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:4px;padding:4px 0;margin-top:2px}
+      .add{font-size:13px;color:#ECDFCC;background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:4px;padding:4px 0;margin-top:2px}
 
       .hint{font-size:11px;color:var(--secondary-text-color);margin-top:3px;line-height:1.5}
       .custom-area{width:100%;min-height:356px;padding:10px;border:1px solid var(--divider-color,#e0e0e0);border-radius:6px;font-family:var(--code-font-family,monospace);font-size:12px;background:var(--input-fill-color,#f5f5f5);color:var(--primary-text-color);resize:vertical;box-sizing:border-box;line-height:1.6}
@@ -776,8 +776,8 @@ class ConfirmCardEditor extends HTMLElement {
       .toggle-sw{position:relative;width:38px;height:22px;flex-shrink:0}
       .toggle-sw input{opacity:0;width:0;height:0;position:absolute}
       .toggle-track{position:absolute;inset:0;border-radius:11px;background:var(--divider-color,#ccc);cursor:pointer;transition:background 0.2s}
-      .toggle-sw input:checked + .toggle-track{background:var(--primary-color,#5b3de8)}
-      .toggle-track::after{content:'';position:absolute;width:16px;height:16px;border-radius:50%;background:white;top:3px;left:3px;transition:transform 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.3)}
+      .toggle-sw input:checked + .toggle-track{background:#299a4c}
+      .toggle-track::after{content:'';position:absolute;width:16px;height:16px;border-radius:50%;background:#ECDFCC;top:3px;left:3px;transition:transform 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.3)}
       .toggle-sw input:checked + .toggle-track::after{transform:translateX(16px)}
       #ep-wrap ha-entity-picker{display:block;width:100%}
           #f-name:hover{background:var(--ha-color-form-background-hover,rgba(0,0,0,0.08)) !important}
@@ -889,7 +889,7 @@ class ConfirmCardEditor extends HTMLElement {
           return '<div style="display:flex;align-items:center;gap:6px">'
             +'<input type="color" data-color="'+key+'" value="'+val+'" data-def="'+def+'" style="width:34px;height:30px;border:none;border-radius:6px;cursor:pointer;padding:2px;flex-shrink:0">'
             +'<label style="font-size:11px;color:var(--secondary-text-color);flex:1">'+label+'</label>'
-            +'<button data-popup-reset="'+key+'" style="background:none;border:none;cursor:pointer;font-size:15px;color:var(--primary-color,#ECDFCC);opacity:'+(isCust?'0.9':'0.5')+';padding:2px 4px" title="Zurücksetzen">&#8635;</button>'
+            +'<button data-popup-reset="'+key+'" style="background:none;border:none;cursor:pointer;font-size:15px;color:#ECDFCC;opacity:'+(isCust?'0.9':'0.5')+';padding:2px 4px" title="Zurücksetzen">&#8635;</button>'
             +'</div>';
         }).join('')}
       </div>
@@ -926,7 +926,7 @@ class ConfirmCardEditor extends HTMLElement {
             return '<div style="display:flex;align-items:center;gap:6px">'
               +'<input type="color" data-cc="'+k+'" value="'+v+'" data-def="'+def+'" style="width:34px;height:30px;border:none;border-radius:6px;cursor:pointer;padding:2px;flex-shrink:0">'
               +'<label style="font-size:11px;color:var(--secondary-text-color);flex:1">'+l+'</label>'
-              +'<button data-cc-reset="'+k+'" style="background:none;border:none;cursor:pointer;font-size:15px;color:var(--primary-color,#ECDFCC);opacity:'+(isCust?'0.9':'0.5')+';padding:2px 4px" title="Zurücksetzen">&#8635;</button>'
+              +'<button data-cc-reset="'+k+'" style="background:none;border:none;cursor:pointer;font-size:15px;color:#ECDFCC;opacity:'+(isCust?'0.9':'0.5')+';padding:2px 4px" title="Zurücksetzen">&#8635;</button>'
               +'</div>';
           }).join('')+'</div>';
       })()}
