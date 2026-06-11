@@ -760,7 +760,7 @@ class ConfirmCardEditor extends HTMLElement {
       .field input{padding:8px 10px;border:1px solid var(--divider-color,#e0e0e0);border-radius:6px;font-size:13px;background:var(--input-fill-color,#f5f5f5);color:var(--primary-text-color);width:100%;box-sizing:border-box;font-family:inherit}
       .field textarea{padding:8px 10px;border:1px solid var(--divider-color,#e0e0e0);border-radius:6px;font-size:12px;background:var(--input-fill-color,#f5f5f5);color:var(--primary-text-color);width:100%;box-sizing:border-box;font-family:var(--code-font-family,monospace);min-height:356px !important;resize:vertical;line-height:1.6}
       .type-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
-      .tb{padding:10px 4px;border:1px solid #3b3c3e;border-radius:8px;background:#3b3c3e;font-size:11px;color:#ECDFCC;cursor:pointer;text-align:center;display:flex;flex-direction:column;align-items:center;gap:5px;font-weight:500}
+      .tb{padding:10px 4px;border: 1px solid var(--divider-color, rgba(0, 0, 0, .12));border-radius:8px;background:#3b3c3e;font-size:11px;color:#ECDFCC;cursor:pointer;text-align:center;display:flex;flex-direction:column;align-items:center;gap:5px;font-weight:500}
       .tb ha-icon{--mdc-icon-size:20px;color:#ECDFCC}
       .tb.on{border-color:#ECDFCC;background:#ECDFCC;color:#28282A;font-weight:600}
       .tb.on ha-icon{color:#28282A}
