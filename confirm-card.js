@@ -453,21 +453,23 @@ const DEFAULT_ICONS = {
 };
 
 const PILL_D={
-  on: {card_bg:'#28282A',icon_bg:'#ECDFCC',icon_color:'#28282A',name_color:'#ECDFCC'},
-  off:{card_bg:'#28282A',icon_bg:'#3a3b3d',icon_color:'#ECDFCC',name_color:'#ECDFCC'},
-  unavail_color:'#C62828',
+  on:     {card_bg:'#28282A',icon_bg:'#ECDFCC',icon_color:'#28282A',name_color:'#ECDFCC'},
+  off:    {card_bg:'#28282A',icon_bg:'#3a3b3d',icon_color:'#ECDFCC',name_color:'#ECDFCC'},
+  unavail:{card_bg:'#C62828',icon_bg:'#3a3b3d',icon_color:'#ECDFCC',name_color:'#ECDFCC'},
 };
 const _mCC=(def,cust)=>{const r={...def};if(cust)Object.entries(cust).forEach(([k,v])=>{if(v)r[k]=v;});return r;};
-const PILL_TEMPLATE=(entity,name,iconOn,iconOff,iconUnavail,cc)=>{
+const PILL_TEMPLATE=(entity,name,iconOn,iconOff,iconUnavail,cc,mode='button')=>{
   const on=_mCC(PILL_D.on,cc?.on),off=_mCC(PILL_D.off,cc?.off);
-  const uCol=(cc?.unavail_color)||PILL_D.unavail_color;
-  const iOn=iconOn||'mdi:power-plug',iOff=iconOff||'mdi:power-plug-off',iU=iconUnavail||iOff;
+  const una=_mCC(PILL_D.unavail,cc?.unavail);
+  if(cc?.unavail_color&&!cc?.unavail?.card_bg)una.card_bg=cc.unavail_color;
+  const _mi=DEFAULT_ICONS[mode]||DEFAULT_ICONS.button;
+  const iOn=iconOn||_mi.on,iOff=iconOff||_mi.off,iU=iconUnavail||_mi.unavail;
   return{
     type:'custom:button-card',entity,name:name||'',icon:iOn,tap_action:{action:'none'},
     extra_styles: ':host {\n  --button-card-ripple-color: transparent !important;\n  --button-card-ripple-press-opacity: 0 !important;\n  --ha-ripple-color: transparent !important;\n  -webkit-tap-highlight-color: transparent !important;\n  overflow: hidden;\n}\n',
     state:[
       {value:'off',icon:iOff,styles:{card:[{'background':off.card_bg}],icon:[{'color':off.icon_color},{'opacity':'0.6'}],img_cell:[{'background':off.icon_bg}],name:[{'color':off.name_color}]}},
-      {value:'unavailable',icon:iU,styles:{card:[{'background':uCol},{'pointer-events':'none'}],icon:[{'color':off.icon_color},{'opacity':'0.6'}],img_cell:[{'background':off.icon_bg}],name:[{'color':on.name_color}]}},
+      {value:'unavailable',icon:iU,styles:{card:[{'background':una.card_bg},{'pointer-events':'none'}],icon:[{'color':una.icon_color},{'opacity':'0.6'}],img_cell:[{'background':una.icon_bg}],name:[{'color':una.name_color}]}},
     ],
     styles:{
       card:[{'height':'56px'},{'border-radius':'75px'},{'padding':'4px 20px 4px 4px'},{'background':on.card_bg}],
@@ -483,13 +485,15 @@ const PILL_TEMPLATE=(entity,name,iconOn,iconOff,iconUnavail,cc)=>{
 
 
 // PILL_YAML: formatierter YAML-String für die Textarea
-const PILL_YAML = (entity, name, iconOn, iconOff, iconUnavail, cc) => {
+const PILL_YAML = (entity, name, iconOn, iconOff, iconUnavail, cc, mode='button') => {
   const on   = _mCC(PILL_D.on,  cc?.on);
   const off  = _mCC(PILL_D.off, cc?.off);
-  const uCol = cc?.unavail_color || PILL_D.unavail_color;
-  const iOn  = iconOn      || 'mdi:power-plug';
-  const iOff = iconOff     || 'mdi:power-plug-off';
-  const iU   = iconUnavail || iOff;
+  const una  = _mCC(PILL_D.unavail, cc?.unavail);
+  if(cc?.unavail_color&&!cc?.unavail?.card_bg)una.card_bg=cc.unavail_color;
+  const _mi  = DEFAULT_ICONS[mode]||DEFAULT_ICONS.button;
+  const iOn  = iconOn  || _mi.on;
+  const iOff = iconOff || _mi.off;
+  const iU   = iconUnavail || _mi.unavail;
   const offCard = cc?.off?.card_bg    ? `\n      card:\n        - background: "${off.card_bg}"` : '';
   const offName = cc?.off?.name_color ? `\n      name:\n        - color: "${off.name_color}"` : '';
   return (`type: custom:button-card
@@ -517,15 +521,15 @@ state:
     icon: ${iU}
     styles:
       card:
-        - background: "${uCol}"
+        - background: "${una.card_bg}"
         - pointer-events: none
       icon:
-        - color: "${off.icon_color}"
+        - color: "${una.icon_color}"
         - opacity: "0.6"
       img_cell:
-        - background: "${off.icon_bg}"
+        - background: "${una.icon_bg}"
       name:
-        - color: "${on.name_color}"
+        - color: "${una.name_color}"
 styles:
   card:
     - height: 56px
@@ -673,6 +677,12 @@ class ConfirmCardEditor extends HTMLElement {
       this._editorIconUnavail=config.card?.icon_unavail||'';
       this._cc=config._cc||{};
       this._cardStyle = config.card?.type === 'custom:button-card' ? 'pill' : 'standard';
+      // Default-Icons des aktuellen Modus nicht als explizite Werte behandeln
+      const _curDef = DEFAULT_ICONS[this._mode] || DEFAULT_ICONS.button;
+      if (this._editorIcon        === _curDef.on)      this._editorIcon        = '';
+      if (this._editorIconOn      === _curDef.on)      this._editorIconOn      = '';
+      if (this._editorIconOff     === _curDef.off)     this._editorIconOff     = '';
+      if (this._editorIconUnavail === _curDef.unavail)  this._editorIconUnavail = '';
     }
 
     if(config._editorMode&&['button','light','tile'].includes(config._editorMode)){
@@ -904,7 +914,10 @@ class ConfirmCardEditor extends HTMLElement {
           ['off.icon_color','Icon Farbe',        PILL_D.off.icon_color, this._cc?.off?.icon_color||''],
           ['off.name_color','Name Farbe',        PILL_D.off.name_color, this._cc?.off?.name_color||''],
         ]:[
-          ['unavail_color','Hintergrund','#C62828',this._cc?.unavail_color||''],
+          ['unavail.card_bg',   'Karte Hintergrund', PILL_D.unavail.card_bg,    this._cc?.unavail?.card_bg   ||''],
+          ['unavail.icon_bg',   'Icon Hintergrund',  PILL_D.unavail.icon_bg,    this._cc?.unavail?.icon_bg   ||''],
+          ['unavail.icon_color','Icon Farbe',        PILL_D.unavail.icon_color, this._cc?.unavail?.icon_color||''],
+          ['unavail.name_color','Name Farbe',        PILL_D.unavail.name_color, this._cc?.unavail?.name_color||''],
         ];
         return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
           +_r.map(([k,l,def,cur])=>{
@@ -1249,9 +1262,14 @@ class ConfirmCardEditor extends HTMLElement {
       ip.addEventListener('value-changed', e => onChange(e.detail.value || ''));
       wrap.appendChild(ip);
     };
-    const _iOn  = this._editorIconOn      || this._config.card?.icon                  || '';
-    const _iOff = this._editorIconOff     || this._config.card?.state?.[0]?.icon      || '';
-    const _iU   = this._editorIconUnavail || this._config.card?.state?.[1]?.icon      || '';
+    // Mode-Default Icons nicht als Wert zeigen — nur explizit gesetzte Icons
+    const _modeD=DEFAULT_ICONS[this._mode]||DEFAULT_ICONS.button;
+    const _cardIcon   =this._config.card?.icon;
+    const _cardIconOff=this._config.card?.state?.[0]?.icon;
+    const _cardIconU  =this._config.card?.state?.[1]?.icon;
+    const _iOn  = this._editorIconOn      || (_cardIcon    && _cardIcon    !==_modeD.on      ? _cardIcon    : '') || '';
+    const _iOff = this._editorIconOff     || (_cardIconOff && _cardIconOff !==_modeD.off     ? _cardIconOff : '') || '';
+    const _iU   = this._editorIconUnavail || (_cardIconU   && _cardIconU   !==_modeD.unavail ? _cardIconU   : '') || '';
     _mkIconPicker('#ip-on-wrap',     _iOn,  DEFAULT_ICONS[this._mode]?.on      || 'mdi:power-plug',     v=>{this._editorIconOn=v;      if(this._cardStyle==='pill')this._refreshPillYaml();else this._updateCard({icon_on:     v||undefined});});
     _mkIconPicker('#ip-off-wrap',    _iOff, DEFAULT_ICONS[this._mode]?.off     || 'mdi:power-plug-off', v=>{this._editorIconOff=v;     if(this._cardStyle==='pill')this._refreshPillYaml();else this._updateCard({icon_off:    v||undefined});});
     _mkIconPicker('#ip-unavail-wrap',_iU,   DEFAULT_ICONS[this._mode]?.unavail || 'mdi:power-plug-off', v=>{this._editorIconUnavail=v; if(this._cardStyle==='pill')this._refreshPillYaml();else this._updateCard({icon_unavail:v||undefined});});
@@ -1291,8 +1309,8 @@ class ConfirmCardEditor extends HTMLElement {
   _refreshPillYaml() {
     const eid  = this._config.entity || this._config.card?.entity || '';
     const cc   = this._cc || {};
-    this._config.card = { ...PILL_TEMPLATE(eid, this._editorName||'', this._editorIconOn||this._editorIcon, this._editorIconOff, this._editorIconUnavail, cc), tap_action: { action: 'none' } };
-    const yaml = PILL_YAML(eid, this._editorName||'', this._editorIconOn||this._editorIcon, this._editorIconOff, this._editorIconUnavail, cc);
+    this._config.card = { ...PILL_TEMPLATE(eid, this._editorName||'', this._editorIconOn||this._editorIcon, this._editorIconOff, this._editorIconUnavail, cc, this._mode), tap_action: { action: 'none' } };
+    const yaml = PILL_YAML(eid, this._editorName||'', this._editorIconOn||this._editorIcon, this._editorIconOff, this._editorIconUnavail, cc, this._mode);
     this._customYaml = yaml;
     this._savedCustomYaml = yaml;
     const ta = this.shadowRoot.querySelector('#f-yaml');
@@ -1309,9 +1327,9 @@ class ConfirmCardEditor extends HTMLElement {
     const iconUnavail= this._editorIconUnavail   || '';
     if (this._cardStyle === 'pill') {
       const _cc=this._cc||{};
-      this._config.card={...PILL_TEMPLATE(eid,name,iconOn||icon,iconOff,iconUnavail,_cc),tap_action:{action:'none'}};
+      this._config.card={...PILL_TEMPLATE(eid,name,iconOn||icon,iconOff,iconUnavail,_cc,this._mode),tap_action:{action:'none'}};
       this._useCustomYaml=true;
-      const _yaml=PILL_YAML(eid,name,iconOn||icon,iconOff,iconUnavail,_cc);
+      const _yaml=PILL_YAML(eid,name,iconOn||icon,iconOff,iconUnavail,_cc,this._mode);
       this._customYaml=_yaml;
       this._savedCustomYaml=_yaml;
     } else {
@@ -1328,11 +1346,36 @@ class ConfirmCardEditor extends HTMLElement {
 
     if (this._useCustomYaml && this._customYaml) {
       const parsed = tryParseYaml(this._customYaml);
-      if (parsed) this._config.card = { ...parsed, tap_action: { action: 'none' } };
+      if (parsed) {
+        // Icons aktualisieren wenn sie dem Standard des ALTEN Modus entsprechen
+        // (user-gesetzte Icons werden beibehalten)
+        const _pd = DEFAULT_ICONS[prevMode] || DEFAULT_ICONS.button;
+        const _nd = DEFAULT_ICONS[mode]     || DEFAULT_ICONS.button;
+        const _pIcon    = parsed.icon;
+        const _pIconOff = parsed.state?.[0]?.icon;
+        const _pIconU   = parsed.state?.[1]?.icon;
+        const _nOn  = (_pIcon    === _pd.on)      ? _nd.on      : (_pIcon    || '');
+        const _nOff = (_pIconOff === _pd.off)     ? _nd.off     : (_pIconOff || '');
+        const _nU   = (_pIconU   === _pd.unavail) ? _nd.unavail : (_pIconU   || '');
+        const _pEid  = parsed.entity || '';
+        const _pName = parsed.name   || '';
+        const _cc2   = this._cc || {};
+        this._config.card = {...PILL_TEMPLATE(_pEid,_pName,_nOn,_nOff,_nU,_cc2,mode),tap_action:{action:'none'}};
+        const _ny = PILL_YAML(_pEid,_pName,_nOn,_nOff,_nU,_cc2,mode);
+        this._customYaml = _ny;
+        this._savedCustomYaml = _ny;
+      }
       this._fireChanged();
       this._render();
       return;
     }
+
+    // Icons zurücksetzen wenn sie dem Standard des alten Modus entsprechen
+    const _prevDef = DEFAULT_ICONS[prevMode] || DEFAULT_ICONS.button;
+    if (this._editorIcon        === _prevDef.on)      this._editorIcon        = '';
+    if (this._editorIconOn      === _prevDef.on)      this._editorIconOn      = '';
+    if (this._editorIconOff     === _prevDef.off)     this._editorIconOff     = '';
+    if (this._editorIconUnavail === _prevDef.unavail)  this._editorIconUnavail = '';
 
     // Aktuelle Entity des alten Modus speichern
     const currentEid = this._config.entity || this._config.card?.entity || '';
@@ -1345,8 +1388,12 @@ class ConfirmCardEditor extends HTMLElement {
     const icon = this._editorIcon || '';
     if (this._cardStyle === 'pill') {
       const _cc2=this._cc||{};
-      this._config.card={...PILL_TEMPLATE(restoredEid,name,this._editorIconOn||icon,this._editorIconOff,this._editorIconUnavail,_cc2),tap_action:{action:'none'}};
-      const _y2=PILL_YAML(restoredEid,name,this._editorIconOn||icon,this._editorIconOff,this._editorIconUnavail,_cc2);
+      const _mDef=DEFAULT_ICONS[mode]||DEFAULT_ICONS.button;
+      const _iOnEff  =this._editorIconOn     ||_mDef.on;
+      const _iOffEff =this._editorIconOff    ||_mDef.off;
+      const _iUEff   =this._editorIconUnavail||_mDef.unavail;
+      this._config.card={...PILL_TEMPLATE(restoredEid,name,_iOnEff,_iOffEff,_iUEff,_cc2,mode),tap_action:{action:'none'}};
+      const _y2=PILL_YAML(restoredEid,name,_iOnEff,_iOffEff,_iUEff,_cc2,mode);
       this._customYaml=_y2;
       this._savedCustomYaml=_y2;
     } else {
