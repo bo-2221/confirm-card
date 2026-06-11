@@ -405,7 +405,7 @@ class ConfirmCard extends HTMLElement {
 customElements.define('confirm-card', ConfirmCard);
 
   console.info(
-    `%c CONFIRM-CARD %c v1.0.5 `,
+    `%c CONFIRM-CARD %c v1.0.6 `,
     'background:#ECDFCC;color:#28282A;font-weight:700;padding:8px 6px;border-radius:8px 0 0 8px',
     'background:#363638;color:#ECDFCC;font-weight:500;padding:8px 6px;border-radius:0 8px 8px 0'
   );
@@ -649,9 +649,10 @@ class ConfirmCardEditor extends HTMLElement {
     if (this._ignoreNextSetConfig) {
       this._ignoreNextSetConfig = false;
       this._config = JSON.parse(JSON.stringify(config));
+      delete this._config._editorMode;
+      delete this._config._cc;
       if (this._config.card) this._config.card.tap_action = { action: 'none' };
-      if (config._editorMode&&['button','light','tile'].includes(config._editorMode)) this._mode=config._editorMode;
-      else{const _ei=config.card?.entity||'';const _di=_ei?_ei.split('.')[0]:null;
+      {const _ei=config.card?.entity||'';const _di=_ei?_ei.split('.')[0]:null;
         if(_di==='light')this._mode='light';
         else if(_di&&['switch','input_boolean'].includes(_di))this._mode='button';
         else if(config.card?.type==='light')this._mode='light';
@@ -664,6 +665,8 @@ class ConfirmCardEditor extends HTMLElement {
     const isFirstRender = !this.shadowRoot.querySelector('.sec');
 
     this._config = JSON.parse(JSON.stringify(config));
+    delete this._config._editorMode;
+    delete this._config._cc;
     const t = config.card?.type || 'button';
 
     const SIMPLE_KEYS = new Set(['type','entity','tap_action','name','icon']);
@@ -685,9 +688,7 @@ class ConfirmCardEditor extends HTMLElement {
       if (this._editorIconUnavail === _curDef.unavail)  this._editorIconUnavail = '';
     }
 
-    if(config._editorMode&&['button','light','tile'].includes(config._editorMode)){
-      this._mode=config._editorMode;
-    }else{
+    {
       const _eid2=config.card?.entity||'';const _d2=_eid2?_eid2.split('.')[0]:null;
       if(_d2==='light')this._mode='light';
       else if(_d2&&['switch','input_boolean'].includes(_d2))this._mode='button';
@@ -824,7 +825,7 @@ class ConfirmCardEditor extends HTMLElement {
       <div class="sec" style="${this._cardStyle==='standard'?'display:none':''}">
         <div class="lbl">Entität</div>
         <div class="field" id="ep-wrap"></div>
-        <div id="entity-hint" class="hint" style="margin-top:-4px;display:block">
+        <div id="entity-hint" class="hint" style="margin-top:-4px;display:block; margin-bottom: 4px;">
           ${(()=>{
             if (!eid) return '<span style="color:var(--warning-color,#FF9800)">⚠ Bitte ' + (this._mode==='light'?'eine Lampe':'einen Schalter') + ' auswählen</span>';
             const d = eid.split('.')[0];
@@ -1005,10 +1006,28 @@ class ConfirmCardEditor extends HTMLElement {
         delete _conf.tap_action;
         const cardType = this._mode==='light' ? 'light' : this._mode==='tile' ? 'tile' : 'button';
         const cardElName = `hui-${cardType}-card`;
+
+        // Domain-Filter: includeDomains auf nativen Entity-Picker setzen
+        const _domains = DOMAIN_FILTER[this._mode] || [];
+        const _applyFilter = (root) => {
+          if (!root) return false;
+          let found = false;
+          root.querySelectorAll('ha-entity-picker').forEach(p => {
+            if (_domains.length > 0) { p.includeDomains = _domains; found = true; }
+          });
+          root.querySelectorAll('*').forEach(el => {
+            if (el.shadowRoot) { if (_applyFilter(el.shadowRoot)) found = true; }
+          });
+          return found;
+        };
+        const _retryFilter = (editor, attempt=0) => {
+          if (!_applyFilter(editor.shadowRoot || editor) && attempt < 15)
+            setTimeout(() => _retryFilter(editor, attempt+1), 150);
+        };
+
         const attachEditor = (editor) => {
           editor.hass = _hass;
           try { editor.setConfig(_conf); } catch(e) {}
-          // stopPropagation verhindert dass HA den Event abfängt und confirm-card config überschreibt
           editor.addEventListener('config-changed', ev => {
             ev.stopPropagation();
             this._config.card = { ...ev.detail.config, tap_action: { action:'none' } };
@@ -1016,6 +1035,7 @@ class ConfirmCardEditor extends HTMLElement {
           });
           nWrap.innerHTML = '';
           nWrap.appendChild(editor);
+          setTimeout(() => _retryFilter(editor), 100);
         };
         (async () => {
           try {
@@ -1095,7 +1115,7 @@ class ConfirmCardEditor extends HTMLElement {
         this._updatePopup({colors:{...(this._config.popup?.colors||THEMES.dark),[inp.dataset.color]:inp.dataset.def}});}
     }));
     const _sCC=(k,v)=>{
-      if(k.includes('.')){const[g,p]=k.split('.');const grp={...(this._cc?.[g]||{})};if(v)grp[p]=v;else delete grp[p];this._cc={...this._cc,[g]:grp};}
+      if(k.includes('.')){const[g,p]=k.split('.');const grp={...(this._cc?.[g]||{})};if(v)grp[p]=v;else delete grp[p];const cc={...this._cc};if(Object.keys(grp).length)cc[g]=grp;else delete cc[g];this._cc=cc;}
       else{const cc={...this._cc};if(v)cc[k]=v;else delete cc[k];this._cc=cc;}
     };
     sr.querySelectorAll('[data-cc]').forEach(inp=>inp.addEventListener('input',()=>{
@@ -1465,11 +1485,28 @@ class ConfirmCardEditor extends HTMLElement {
 
   _fireChanged() {
     this._ignoreNextSetConfig = true;
-    const out = JSON.parse(JSON.stringify(this._config));
-    if (out.card?.tap_action?.action === 'none') delete out.card.tap_action;
-    if (out.popup?.on_confirm) delete out.popup.on_confirm;
-    out._editorMode=this._mode;
-    if(Object.keys(this._cc||{}).length)out._cc=this._cc;
+    // Output von Grund auf neu bauen — nur bekannte Felder, kein blindes Kopieren
+    // (räumt alte Configs auf die noch _editorMode/_cc direkt in this._config hatten)
+    const out = { type: 'custom:confirm-card' };
+    if (this._config.entity) out.entity = this._config.entity;
+    if (this._config.card) {
+      out.card = JSON.parse(JSON.stringify(this._config.card));
+      if (out.card.tap_action?.action === 'none') delete out.card.tap_action;
+    }
+    if (this._config.popup && Object.keys(this._config.popup).length) {
+      out.popup = JSON.parse(JSON.stringify(this._config.popup));
+      if (out.popup.on_confirm) delete out.popup.on_confirm;
+    }
+    // Editor-interne Felder nur im Pill Style
+    if (this._cardStyle === 'pill') {
+      // Leere Gruppen aus _cc herausfiltern
+      const ccClean = Object.fromEntries(
+        Object.entries(this._cc||{}).filter(([,v]) =>
+          typeof v === 'object' ? Object.keys(v).length > 0 : !!v
+        )
+      );
+      if (Object.keys(ccClean).length) out._cc = ccClean;
+    }
     this.dispatchEvent(new CustomEvent('config-changed', {
       detail:{ config: out },
       bubbles:true, composed:true,
